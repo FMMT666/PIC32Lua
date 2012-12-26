@@ -1,0 +1,1440 @@
++--------------------------------------------------------------------------------------------------+
+|
+|      Minimal, but growing PIC32Lua description V0.4b
+|      ASkr 8/2010 - 11/2012; www.askrprojects.net
+|
+|      Note: For hardware guys, only ;-)
+|
++--------------------------------------------------------------------------------------------------+
+
+
+0       PREFACE
+
+          Just a quick hack...
+          My personal, small, yet 3 week old, "port" (...) of Lua to a PIC32 MCU.
+          A hardware guy is just having his fun, here 8-)
+        
+          ...
+       
+
+0.1     HARDWARE
+
+          Although many smaller, or other PIC32, types will work, this code has been written for,
+          and tested on, a PIC32MX795F512L processor (bare silicon).
+          Except for an oscillator (and an ICD interface for programming), nothing else is
+          required.
+
+          By default, the console interface is routed to UART2A, with a default setting of 115200, 8N1.
+          
+          As of version V0.4a, PIC32Lua supports the chipKIT-Max32 from Digilent.
+          The (chipkit!) HEX file can be direcly programmed by "avrdude" (comes with "MPide").
+          For the chipKIT-Max32, the console interface is routed to UART1A (FTDI connection).
+     
+          ...
+          
+0.1.1   SD-CARD INTERFACE
+
+          As of V0.2a, PIC32Lua supports SPI1 and SPI2 SD-card interface, with SPI2 as
+          the default interface.
+          Although not fully tested, all the access can be made via Lua's internal IOLIB.
+          
+          HW adaption follows the "Microchip Standard" ;-)
+          Schematics for PIC32Lua are (or should be) available via:
+          http://www.askrprojects.net/software/pic32lua/index.html
+
+          For settings related to the SD-card, see "HardwareProfile.h" (a little more) below.
+
+          
+          SPI2 SD-card pins ("!" denotes inverted polarity):
+
+              SIGNAL  PIN   FUNCTION              PIC32  CHIPKIT  SD-CARD
+             -------------------------------------------------------------
+                !CS   RB9   chip select             33      63       1
+                 CD   RG0   card detect   (opt.)    90      79       -
+                 WP   RG1   write protect (opt.)    89      78       -
+                 SCK  RG6   SPI clock               10      52       5
+                 SDI  RG7   SPI data in             11      51       2
+                 SDO  RG8   SPI data out            12      50       7
+
+               
+          SPI1 SD-card pins ("!" denotes inverted polarity):
+          
+              SIGNAL  PIN   FUNCTION              PIC32  CHIPKIT  SD-CARD
+             -------------------------------------------------------------
+                !CS   RB1   chip select             24      55       1
+                 CD   RF0   card detect   (opt.)    87      45       -
+                 WP   RF1   write protect (opt.)    88      46       -
+                 SCK  RD15  SPI clock               48      18       5
+                 SDI  RF2   SPI data in             52       0       2
+                 SDO  RF8   SPI data out            53       1       7
+               
+           
+          SD-card (bottom view):
+          
+               |                           |    1   -   !CS
+               |                           |    2   -   SDI
+               |                           |    3   -   VSS1 (GND)
+               |                        ## |    4   -   +Ub  (3.3V)
+               |                        ## |    5   -   SCK
+               | # ## ## ## ## ## ## ## ## |    6   -   VSS2 (GND)
+               | # ## ## ## ## ## ## ##   /     7   -   SDO
+               | # ## ## ## ## ## ## ##  /      8   -   n.c.
+               +------------------------+       9   -   n.c.
+                 8  7  6  5  4  3  2  1  9               
+
+    
+          ...
+
+          
+0.1.1.1   SD-CARD BOOT FILE
+
+            As of version 0.4b, PIC32Lua supports a boot file on the SD-card.
+            
+            If the SD-card code is built in and the boot file option is enabled
+            (see "HardwareProfile.h" section below), the file
+            
+              BOOT32.LUA
+            
+            is loaded and the function
+            
+              BOOT32()
+              
+            is called.
+            
+            Note #1: "BOOT32()" written in captil letters!
+            Note #2: All code not "hidden" inside a function gets executed
+                     immediately!
+            
+            Error information is available via the _global_ variable "BOOT32ERR".
+            Scroll down to "SD-card boot error" for more information.
+            
+            NOTICE:
+              It is NOT "pic.BOOT32ERR", but just "BOOT32ERR"
+
+
+              
+            EXAMPLE:
+                -- example BOOT32.LUA file
+
+                print("- start OF BOOT32.LUA file")
+
+                function hidden()
+                  local i
+
+                  print("- inside hidden() function in BOOT32.LUA file")
+                  
+                  for i=1,3 do
+                    print("  blabla "..i)
+                  end
+
+                end
+
+                function BOOT32()
+                  print("- inside BOOT32() function in BOOT32.LUA file")
+                  hidden()
+                end
+
+                print("- end of BOOT32.LUA file")
+
+
+                
+              This example will output:
+              
+                Lua 5.1.4  Copyright (C) 1994-2008 Lua.org, PUC-Rio
+                Lua 5.1.4  Copyright (C) 2010-2012 ASkr, PIC32
+                - start OF BOOT32.LUA file
+                - end of BOOT32.LUA file
+                - inside BOOT32() function in BOOT32.LUA file
+                - inside hidden() function in BOOT32.LUA file
+                  blabla 1
+                  blabla 2
+                  blabla 3
+                >
+              
+              
+
+
+
+
+
+              
+            ...
+
+
+0.2     COMPILER REQUIREMENTS
+
+          To keep things easy, the source comes as a ready-to-use MPLab/C32 package.
+          Make sure you installed the C32 compiler (the free version is fine, it just
+          will not allow any optimisation beyond -O1).
+
+          NOTE:
+          If possible, load the workspace file "PIC32Lua.mcw" instead of the project file!
+          Otherwise, some strange things might happen (although this might be fixed in
+          MPlab versions >8.60).
+          
+          Except for the C32 compiler directory (and some window positions), no further changes
+          should be required.
+          
+          NOTE (11/2011); V0.4a:
+            
+            As of now, PIC32Lua source code ships with two project/workspace file variants:
+            
+             a) PIC32Lua.mcp/w
+                For custom boards without bootloader ("bare chip")
+             
+             b) PIC32Lua-ChipkitMAX32.mcp/w
+                Load this if you are using the chipKIT-Max32.
+                This sets some extra compiler, linker options and uses a special linker file
+                (required for chipKIT-Max32's built-in bootloader, etc...)
+                If you don't want to compile the code by your own (notice that you can NOT use
+                MPide for this! You'll need MPlab, a C32 compiler suite (libs) >= 2.01), just
+                stick to the binary chipKIT-Max32 distribution.
+          
+          
+          NOTE (9/2011):
+          
+            - USE C32 *** v2.01 ***
+            - DO NOT USE THESE VERSIONS:
+              - v1.12x
+              - v2.00
+          
+          Microchip completely "reworked" libc and all processor files (v1.12 up).
+          Most of these changes are not documented, additionally some of the header files
+          do not match the library any more...
+
+          Last good, known version BEFORE "libc-rework":
+          
+            v1.11
+            
+          First good, known version AFTER "libc-rework":
+          
+            v2.01
+            
+          With v2.01, you need to add the following compiler AND linker flag:
+          
+            -legacy-libc
+
+          Inside MPLab, just go to
+          
+            Project -> Build Options -> Project
+            
+            Look out for tabs
+            
+              - MPLAB PIC32 C Compiler
+              - MPLAB PIC32 Linker
+              
+            Enable the "Use Alternate Settings" checkbox and add a "-legacy-libc" at
+            the end of the lines.
+
+          HINT:
+            You indeed can have multiple installations of C32 (in different directories).
+            
+            Inside MPLab, they can be invoked via:
+
+              Project -> Select Language Toosuite
+              
+            Change the paths for
+             
+              ASM32, C32, LINK32, LIB32
+            
+            to any version installed on your system.
+
+          
+          Usually, nothing else but loading PIC32Lua's project or workspace files should be required.
+          
+          
+0.3     BASIC OPERATION/NOTES
+
+          PIC32Lua offers the same functionality as if was started from a Linux console or from
+          Windows' command line: All console input/output is routed ("quickly hacked to") to
+          UART2, the main interface. You can download Lua programs with copy & paste.
+          I prefer Realterm: http://realterm.sourceforge.net/
+          
+          There is no underlaying OS. Except for some interrupt routines (console reception,
+          timer,...) there are no other interfering transactions happening in the background.
+          Just simple and fast...
+
+          The DEBUG module is omitted, the IO and SYS modules were left in, but do not contain
+          any useful stuff other than 'io.write()', '...read()' and '...flush()'. Note that these
+          streams can not be redirected, for now.
+          
+          ...
+
+          
+1       COMPILE TIME SETTINGS
+
+1.1     CONFIGURATION BITS
+
+          As of >V0.2a, the config bits are now set in the code (>>>"asPIC.c"<<<).
+      
+          Required settings for PIC32Lua:
+            - 80MHz CPU
+            - 40MHz peripheral clock:
+
+          Default settings (8MHz crystal):
+
+            #if defined(__32MX795F512L__)
+              #pragma config FPLLMUL  = MUL_20        // PLL Multiplier
+              #pragma config FPLLIDIV = DIV_2         // PLL Input Divider
+              #pragma config FPLLODIV = DIV_1         // PLL Output Divider
+              #pragma config FPBDIV   = DIV_2         // Peripheral Clock divisor
+              #pragma config FWDTEN   = OFF           // Watchdog Timer
+              #pragma config WDTPS    = PS1           // Watchdog Timer Postscale
+              #pragma config FCKSM    = CSDCMD        // Clock Switching & Fail Safe Clock Monitor
+              #pragma config OSCIOFNC = OFF           // CLKO Enable
+              #pragma config POSCMOD  = XT            // Primary Oscillator
+              #pragma config IESO     = OFF           // Internal/External Switch-over
+              #pragma config FSOSCEN  = OFF           // Secondary Oscillator Enable (KLO was off)
+              #pragma config FNOSC    = PRIPLL        // Oscillator Selection
+              #pragma config CP       = OFF           // Code Protect
+              #pragma config BWP      = OFF           // Boot Flash Write Protect
+              #pragma config PWP      = OFF           // Program Flash Write Protect
+              #pragma config ICESEL   = ICS_PGx2      // ICE/ICD Comm Channel Select
+              #pragma config DEBUG    = OFF           // Background Debugger Enable
+            #else
+              #error  // as a reminder if you change the processor
+              ...
+            
+          For an 8MHZ crystal, choose (only relevant entries shown):
+        
+            FPLLIDIV     2x Divider                              8MHz/2=4MHz
+            FPLLMUL      20x Multiplier                          4MHz*20=80MHz
+            FPLLODIV     1x Divider                              80MHz/1=80MHz
+            FNOSC        Primary Osc w/PLL  (XT+,HS+...)
+            FSOSCEN      Disabled
+            IESO         Disabled
+            POSCMD       XT osc mode
+            FPBDIV       Pb_Clk is Sys_Clk/2                     80MHz/2=40MHz
+            FWDTEN       WDT Disabed
+
+          Notice that, depending on the processor selection, specific bits might be missing
+          or need to be added.
+          In this case, setting config bits from MPLab might be preferred over #pragma
+          definitions in the code (the "old" PIC32Lua <=V0.1b behaviour).
+
+          NOTE 11/2011; V0.4a:
+          
+            The chipKIT-Max32 starts with peripheral clock set to Sys_Clk/1, but is reprogrammed
+            to 1/2 during the PIC32Lua start up phase.
+            If you are using the chipKIT-Max32, you don't need to worry about any
+            of the configuration bits...
+          
+          ...
+
+          
+          
+1.2     COMPILER/LINKER SETTINGS
+
+          The whole project was developed within MPLab. Therefore, no external Makefiles or
+          linker scripts are available yet.
+
+          ####
+          # Do _NOT_ use a "DEBUG" build configuration! USE "RELEASE"!!!
+          ####
+          
+          C32 debug libraries interfere with some of PIC32Luas built in functions.
+          
+          If you are using any other processor than a MX795F512L, choose yours, here:
+            Configure -> Select Device
+          and remember to set new, appropriate configuration bits!
+
+          
+          For now, the stack and heap settings need to be entered under:
+            Project -> Build Options -> Projects
+          
+          Select TAB "MPLAB PIC32 LINKER", category "General", and set your stack and heap
+          memory sizes.
+          
+          Default values (for MX795F512L, with 128kB RAM):
+          
+            stack   2048
+            heap  121000
+          
+          Sections must not overlap.
+          Heap size should be chosen as large as possible. Smaller values will make PIC32Lua
+          run out of memory, while larger values might bring up linker error messages.
+          For a quick overview, see "View -> Memory Usage Gauge".
+
+          For C32 compiler v2.01, add the
+          
+            -legacy-libc
+            
+          compiler flag (for compiler AND linker!) to the "Use Alternate Settings"
+          input line and enable the checkbox.
+
+          
+          For the chipKIT-Max32, add the compiler-flag
+          
+            -DCHIPKITMAX32
+            
+          and add the special linker file
+          
+            chipKIT-MAX32-application-32MX795F512L-PIC32Lua.ld
+            
+          to the project. Otherwise, the boot area will be included in the code.
+          
+          ...
+          
+      
+1.3     HEADER FILE SETTINGS
+
+          For different setups, a few header (or source) files may require some changes.
+       
+
+1.3.1   asPIC.h
+
+          Define your system frequency (from CONFIG BITS above):
+            #define SYS_FREQ 80000000L
+        
+          Define your peripheral frequency (from CONFIG BITS above):
+            #define PER_FREQ 40000000L
+
+          Define your console (UART2) baudrate:
+            #define CONSOLE_BAUD 115200
+
+          
+          If "CONSOLE_SWAP" is defined, the console interface is routed to UART1A instead of UART2A.
+          This also is the default behaviour for the chipKIT-Max32:
+          
+          #if defined(CHIPKITMAX32)
+            // set Chipkit-Max32 behaviour
+            #define CONSOLE_SWAP
+          #else
+            // set behaviour on other hardware
+            //	#define CONSOLE_SWAP
+          #endif
+            
+            
+            
+          It is safe to keep a value of '8', no matter how many ports your PIC has (see below).
+            #define PIC_MAXPORTS 8
+          Just make sure they are all defined:
+            PIC_TRISx[PIC_MAXPORTS]={PIC_TRISA, PIC_TRISB, ..., PIC_TRISH};
+
+          If any register (TRISx, PORTx) is, or should not be accessible, set it to 'PIC_UNUSED'.
+          E.g.:
+          
+            #define PIC_TRISA (unsigned long)&TRISA
+            #define PIC_TRISB (unsigned long)&TRISB
+            #define PIC_TRISC (unsigned long)&TRISC
+            #define PIC_TRISD (unsigned long)&TRISD
+            #define PIC_TRISE (unsigned long)&TRISE
+            #define PIC_TRISF (unsigned long)&TRISF
+            #define PIC_TRISG (unsigned long)PIC_UNUSED
+            #define PIC_TRISH (unsigned long)PIC_UNUSED
+
+            #define PIC_PORTA (unsigned long)&PORTA
+            #define PIC_PORTB (unsigned long)&PORTB
+            #define PIC_PORTC (unsigned long)&PORTC
+            #define PIC_PORTD (unsigned long)&PORTD
+            #define PIC_PORTE (unsigned long)&PORTE
+            #define PIC_PORTF (unsigned long)&PORTF
+            #define PIC_PORTG (unsigned long)PIC_UNUSED
+            #define PIC_PORTH (unsigned long)PIC_UNUSED
+
+            #define PIC_LATA (unsigned long)&LATA
+            #define PIC_LATB (unsigned long)&LATB
+            #define PIC_LATC (unsigned long)&LATC
+            #define PIC_LATD (unsigned long)&LATD
+            #define PIC_LATE (unsigned long)&LATE
+            #define PIC_LATF (unsigned long)&LATF
+            #define PIC_LATG (unsigned long)PIC_UNUSED
+            #define PIC_LATH (unsigned long)PIC_UNUSED
+            
+            ...
+            
+
+1.3.2   asCON.h
+
+          You may wish to (but should not) modify the size of the receive buffer (UART2 console).
+          1024 provide a good setting for 80MHz system clock and a baud rate of 115k:
+            #define RXBUFSIZE 1024
+          
+          By default, a (very) dirty backspace hack is enabled:
+            #define USE_DIRTY_BACKSPACE    
+          
+          It requires setting an ascii (or terminal) code for the backspace key:
+            #ifdef USE_DIRTY_BACKSPACE
+	            #define KEY_BACKSPACE 127   // ascii code: backspace
+            #endif
+         
+          By doing nothing else, but accepting the above "backspace hack", you are able to correct
+          manually typed console messages. It does nothing else but output a '\r', then remove the
+          last character and reprint the remaining characters afterwards.
+          This should work on almost any terminal. If you don't like it, or it does not work for
+          you, just comment out 'USE_DIRTY_BACKSPACE'.
+        
+          ...
+
+
+1.3.2   asLUA_PIC.h
+
+          By default, a table with "port names" is available as, e.g.:
+          "pic.port.A", "pic.port.B", ...
+          If you want to save (a little) amount of memory and prefer handling port A as "0",
+          B as "1", etc..., you may wish to uncomment:
+            #define DEFINE_PORT_NAMES
+
+          NOTICE V0.4b:
+            SD-card related stuff moved to "asCARD.h"
+
+          ...
+          
+
+1.3.3   luaconf.h
+
+          A lot of internal Lua settings can be made here (if you know what you are doing!).
+          Read the notes in 'luaconf.h'. Otherwise, keep you hands off this file!
+          
+          Even if a PIC32 may have up to 128kB of RAM, Lua might (no, will) run out of memory.
+          By default, the garbage collector is set to conservative values:
+            #define LUAI_GCPAUSE    120
+            #define LUAI_GCMUL      500
+
+          Forget about the rest...
+         
+          MAXCCALLS were reduced by 50%:
+            #define LUAI_MAXCCALLS  100
+
+          MAXVARS to 50 (from 200):
+            #define LUAI_MAXVARS     50
+
+          MAXUPVALUES is now 10 (not 60):
+            #define LUAI_MAXUPVALUES 10
+
+
+1.3.4.  linit.c
+
+          This file determines which of the libraries should be included.
+          The default setting is:
+           
+            //{LUA_LOADLIBNAME, luaopen_package},
+              {LUA_TABLIBNAME,  luaopen_table},
+              {LUA_IOLIBNAME,   luaopen_io},
+            //{LUA_OSLIBNAME,   luaopen_os},
+              {LUA_STRLIBNAME,  luaopen_string},
+              {LUA_MATHLIBNAME, luaopen_math},
+            //{LUA_DBLIBNAME,   luaopen_debug},
+              {LUA_PIC_LIBNAME, luaopen_pic},
+              
+          Even with 128kB RAM, Lua is always short of memory.
+          If you don't need math functions, turn them of during compile time, etc...
+          The above settings will start up Lua with ~18kB of RAM used.
+          
+          In your console, type in the sequence
+          
+            =collectgarbage("collect")
+            =collectgarbage("count")
+            
+          for a memory consumption overview.
+          Notice that Lua will run out of memory before it hits the 128kB barrier
+          (depending on your settings, this may happen at ~100kB).
+          
+          ...
+
+          
+1.3.5   HardwareProfile.h
+
+          By default, PIC32Lua uses SPI2 as the SD-card interface.
+          If your operates on SPI2, swap these two lines:
+          
+            //#define MDD_USE_SPI_1
+            #define MDD_USE_SPI_2
+
+          It might be required to change the ports/pins too.
+          Scroll down a little until you see all the definitions, following:
+          
+           #if defined MDD_USE_SPI_1
+             ...
+             ...
+
+           #elif defined MDD_USE_SPI_2
+             ...
+             ...
+          
+          ...
+    
+    
+1.3.6   asCARD.h
+
+          Undefine this to omit (some) SD-card code from the binary:
+            #define USE_SDCARD_CODE
+            
+          Undefine this if you don't want the "bootfile-feature"
+            #define USE_SDCARD_BOOTFILE
+
+          ...
+    
+
+
+1.9     PROGRAMMING
+
+1.9.1   CUSTOM HARDWARE
+
+          Just use your ICD2/3, PicKitX or whatever to blow the code in.
+          
+
+1.9.2   CHIPKIT-MAX32
+
+          The binary PIC32Lua chipKIT-Max32 distribution comes with a (Windows) batch file that
+          might help you using "avrdude.exe" (supplied with "MPide") for programming the HW.
+          
+          Get "MPide" from: https://github.com/chipKIT32/chipKIT32-MAX/downloads
+          and install it.
+
+          From the PIC32Lua distribution, copy the provided batch file "asProgPIC32Lua.bat"
+          as well as the PIC32Lua HEX file "PIC32Lua-ChipkitMAX32.hex" to your "MPide" root
+          directory (the place where "mpide.exe" resides).
+
+          Call "asProgPI32Lua" with the "chipKIT-Max32"'s COMPORT, e.g.:
+          
+            asProgPI32Lua COM7
+
+          NOTE #1:
+          
+            This will not damage or reprogram your chipKIT-Max32's bootloader.
+            You still can use it from within "MPide" without changing anything.
+
+            
+1.9.3   Audio Development Board (ADB, PIC32 version)
+
+          upcoming attraction...
+
+          ...
+          
+          
+          
+2       ENHANCEMENTS/CHNAGES TO THE LUA LANGUAGE/ENGINE/BEHAVIOUR
+
+2.1     NUMBER REPRESENTATIONS
+
+2.1.1   BINARY NUMBERS (BASE OF TWO)
+
+          PIC32Lua supports binary number input, which comes in handy for bit manipulations.
+          You no longer need to think in hex or dec:
+          A preceeding '0b' or '0B' indicates a binary number (base of 2), e.g.:
+          
+            0b1111     represents 15 (decimal)
+            0b11111110 represents 254 (decimal)
+
+          Note #1:
+            The length of a number in a binary number format can not exceed 32 bits.
+            Any larger value will be truncated (<res> = <bin> & 0xffff).
+
+          Note #2:
+            A two's complement does not exist for binary number format:
+              0b11111111111111111111111111111111 (32 times a '1') means:
+              4294967295 dec, and not -1 dec.
+            
+          Note #3:
+            A negative value entered (e.g.: "-0b0111") IS a negative value (-7dec, in this case).
+         
+            
+          Examples:
+
+            -- print 171445
+            print(0b101001110110110101)
+
+            -- set some port pins to a high state
+            pic.PortPinsHigh(pic.port.A, 0b1111000011110011)
+            
+            
+2.1.2   IOLIB
+
+          PIC32LUA now (almost) fully supports stdio and file access via IOLIB.
+          For interactive console usage, "io.read()" (from stdin) echoes all entered characters
+          back to the console. Despite this little change to the behaviour, (almost) all of
+          the IOLIB functions are ready to use:
+          
+          Examples:
+          
+            io.write(<str>)               ->  write string to console
+            str=io.read                   ->  read string from console
+            f=io.open(<fname>, <mode>)    ->  open file
+            f:write(<str>)                ->  write to file
+            f:read()                      ->  read from file
+            for lines in f:lines() ...    ->  read iteration
+            i=f:seek()                    ->  get current file position
+            f:seek("set",<pos>)           ->  set file position
+            io.flush()                    ->  flush console
+            f:flush()                     ->  flush file
+            f:close()                     ->  close file
+            io.type(<file>)               ->  file status
+            ...
+
+          NOT SUPPORTED, NON-OPERATING OR NOT TESTED:
+          
+            f:read("*all")                ->  read complete file (out of memory)
+            io.input()                    ->  todo
+            io.output()                   ->  todo
+            io.tmpfile()                  ->  todo
+            ...
+
+
+            
+3       AVAILABLE PIC RELATED LUA FUNCTIONS AND VARIABLES
+
+          All functions are available through the 'pic' module, e.g.:
+          
+            pic.TimerRead()
+            pic.PortState()
+            ...
+
+          To browse all available functions in 'pic', use this:
+          
+            for i,j in pairs(pic) do
+              print(i,j)
+            end
+
+            
+3.1     LIST OF AVAILABLE VARIABLES
+
+          Notice that the usage of Lua variables is slower and consumes more memory!
+          Some of them can be turned off during compile time.
+          One day, a "precompiler" hack will find its way into PIC32Lua, allowing
+          defines inside Lua.
+
+          Quick overview, in no particular order:
+
+            pic.port.X       easy to read and to remember "port variables"
+            pic.TIMERTICK    contains the tick-time of the internal timer (100ns, by default)
+            
+            
+3.1.1   Port variables
+
+          Instead of using numbers for ports ('0' == A, '1' == B, ...), the Lua table "pic.port"
+          provides a predefined set of "port names" (variables) which may be used:
+          
+            pic.port.A
+            pic.port.B
+            ...
+            pic.port.H
+            
+          Note: Although using "names" instead of numbers looks and feels good, this consumes
+          some additional memory as well as comuting power.
+          Can be turned off with the compile time switch "DEFINE_PORT_NAMES" in "asLUA_PIC.h".
+
+          
+3.1.2   Timer variables
+
+          The "tick-time", the time the internal timer is incremented, is stored in the variable:
+
+            pic.TIMERTICK
+
+          This can be useful for timing functions, e.g.:
+
+            -- print a number every 500ms
+            tim=pic.TimerRead()
+            for i=1,10 do
+              tim=tim+(0.5/pic.TIMERTICK)
+              pic.TimerMatch(tim)
+              print(i)
+            end
+
+          Even if PIC32Lua's internal timing changes, your application will still be able to
+          maintain a '500ms' delay.
+
+          
+3.1.3   SD-card boot error
+
+          The global variable
+          
+            BOOT32ERR
+            
+          can be used to check why the SD-card boot code from file "BOOT32.LUA"
+          could not be executed.
+          
+            CARD_BOOT_ERR_NOCODE   1  -> SD-card code not compiled in
+            CARD_BOOT_ERR_NOBOOT   2  -> boot file support excluded
+            CARD_BOOT_ERR_NOMOUNT  4  -> no card or file system
+            CARD_BOOT_ERR_NOFILE   8  -> no "BOOT32.LUA" file present
+            CARD_BOOT_ERR_NORUN   16  -> unable to run dofile() on "BOOT32.LUA"
+            CARD_BOOT_ERR_NOFCT   32  -> unable to execute "BOOT32()" (not really an error)
+         
+            
+            
+3.2     LIST OF AVAILABLE FUNCTIONS
+      
+          Quick overview, in no particular order:
+          
+            UART1Enable      enable UART1
+            UART1Disable     disable UART1
+            UART1Baud        set UART1 baudrate
+            UART1Count       count the characters available in the buffer or check RX overflow
+            UART1WriteChar   write a character to UART1
+            UART1ReadChar    read a character from buffer
+            UART1FlushOut    flush out buffer (blocks until all characters are sent)
+            UART1FlushIn     flush in buffer (clears all received characters)
+          
+            PortDir          set pin direction on a port (in/out)
+            PortState        set pin state on a port (high/low)
+            PortLatch        set port latch (high/low)
+            PortPinsHigh     set pins to high state
+            PortPinsLow      set pins to low state
+            PortPinsInv      invert pin state (high/low)
+            
+            TimerRead        read the 64 bit timer value
+            TimerMatch       check if timer value passes a "match" value (BLOCKING or NONBLOCKING)
+            TimerDelay       delay code execution for given time in ms or us
+            
+            ConsoleReadChar  read a character from the console buffer (UART2)
+            ConsoleCount     count the characters available in the console buffer (UART2) or RX OF
+            ConsoleFlushIn   flush reception buffer (UART2)
+            
+            CardDetect       detect presence of an SD-card
+            CardMount        mount SD-card
+            CardFindFirst    find first file or directory in current path; supports wildcards
+            CardFindNext     find next file or directory in current path
+
+            ADPins           set pins to analog input state
+            ADMux            select AD converter input pins
+            ADRef            select AD converter reference voltage
+            ADRead           start conversion and read result
+            
+            
+          Quick reference:
+         
+            <nil>           = pic.UART1Enable(<baud>)
+            <nil>           = pic.UART1Disable()
+            <nil>           = pic.UART1Baud(<baud>)
+            <count>         = pic.UART1Count()
+            <nil>           = pic.UART1WriteChar(<char>)
+            <nil/character> = pic.UART1ReadChar()
+            <nil>           = pic.UART1FlushOut(<char>)
+            <nil>           = pic.UART1FlushIn()
+
+            <dirval>        = pic.PortDir(<port>)
+            <dirval>        = pic.PortDir(<port>, <dir>, <mask>)
+            <pinstate>      = pic.PortState(<port>)
+            <pinstate>      = pic.PortState(<port>, <pins>, <mask>)
+            <retval>        = pic.PortLatch(<port>, <state>)
+            <retval>        = pic.PortPinsHigh(<port>, <pins>)
+            <retval>        = pic.PortPinsLow(<port>, <pins>)
+            <retval>        = pic.PortPinsInv(<port>, <pins>)
+
+            <timerval>      = pic.TimerRead()
+            <match>         = pic.TimerMatch(<matchval>)
+            <match>         = pic.TimerMatch(<matchval>, <blocking>)
+            <nil>           = pic.TimerDelay(<ms>)
+            <nil>           = pic.TimerDelay(<ms>)
+            <nil>           = pic.TimerDelay(<ms/us>, <use_usecs>)
+
+            <nil/character> = pic.ConsoleReadChar()
+            <count>         = pic.ConsoleCount()
+            <nil>           = pic.ConsoleFlushIn()
+
+            <retval>        = pic.CardDetect()
+            <retval>        = pic.CardMount()
+            <name>,<size>   = pic.CardFindFirst(<name>)
+            <name>,<size>   = pic.CardFindFirst(<name>, <type>)
+            <name>,<size>   = pic.CardFindNext()
+
+            <state>         = pic.ADPins()
+            <state>         = pic.ADPins(<pins>)
+            <retval>        = pic.ADMux(<muxa_pos>, <muxb_pos>)
+            <retval>        = pic.ADMux(<muxa_pos>, <muxb_pos>, <muxa_neg>, <muxb_neg>)
+            <nil>           = pic.ADRef(<vrefcfg>)
+            <adval>         = pic.ADRead()
+            
+
+            
+3.2.1   UART1 functions
+            
+3.2.1.1 UART1: enable
+
+          <nil> = UART1Enable(<baud>)
+          
+          Enables UART1 with baud rate <baud>.
+           
+            
+3.2.1.2 UART1: disable
+
+          <nil> = UART1Disable()
+          
+          Disables UART1.
+
+
+3.2.1.3 UART1: baud rate
+
+          <nil> = UART1Baud(<baud>)
+
+          Sets UART1 bitrate to <baud> baud.
+          <baud> must be within 110..500000 bits/s, but can
+          be an arbitrary value.
+
+          
+3.2.1.4 UART1: count characters in receive buffer
+
+          <count> = UART1Count()
+          
+          Returns the number of characters available in the receive buffer.
+          If the RX buffer overflowed, a '-1' will be returned.
+          "UART1FlushIn()" can be called to clear the buffer and reset the overflow flag.
+          
+          
+3.2.1.5 UART1: write character
+
+          <nil> = UART1WriteChar(<char>)
+
+          Writes a single character <char> to the UART1
+
+          
+3.2.1.6 UART1: read a character
+
+          <nil/character> = UART1ReadChar()
+          
+          Immediately returns the next available character <character>, as an integer value, from
+          the receive buffer. If the receive buffer is empty, <nil> is returned.
+          
+          Examples:
+          
+          -- prints numeric value of received characters until ESC (27dec) is detected
+          repeat
+            ch=pic.ConsoleReadChar()
+            if ch~=nil then
+              print(ch)
+            end
+          until ch==27
+          
+          
+3.2.1.7 UART1: flush TX buffer
+
+          <nil> =  UART1FlushOut(<char>)
+
+          Flushes the UART1 output (TX).
+          Blocks until are bytes are sent.
+
+3.2.1.8 UART1: flush RX buffer
+
+          <nil> = UART1FlushIn()
+          
+          Clears the complete receive buffer. Additionally, it will clear the overflow flag, if set.
+
+          
+
+3.2.2   Port functions
+          
+3.2.2.1 PORT: set or read pin direction (in/out)
+
+          <dirval> = PortDir(<port>)
+          <dirval> = PortDir(<port>, <dir>, <mask>)
+
+          Sets the pins of port <port> to direction <dir> and returns the current
+          direction state <dirval> (PORT, not LAT).
+          Only bits that are set in <mask> will be changed.
+          If <dir> and <mask> are omitted, this function just returns the current
+          direction state without changing anything (which is equal to 'PortDir(<port>,<xxx>,0)' )
+
+            <port == 0> PORTA -> TRISA
+            <port == 1> PORTB -> TRISB
+            ...
+            <port == 7> PORTH -> TRISC
+
+            <dir>       16 bit pin dir;  0->IN;        1->OUT
+            <mask>      16 bit pin mask; 0->NO CHANGE; 1-> CHANGE
+            
+            <dirval>    16 bit pin dir;  0->IN         1->OUT
+                        -1 if port not defined or access not allowed
+          
+          Note 1: Direction bits are inverted (1=OUT), opposed to TRISx register (1=IN).
+          Note 2: Read-modify-write access!
+
+          Examples:
+          
+            i=PortDir(2)
+              Reads state of direction register (TRISx inverted) to i.
+            
+            i=PortDir(2,23234,0)
+              Same as above. <mask> is 0, hence no bit is modified.
+              
+            i=PortDir(1,7,0x0f)
+              With <mask> = 0b00001111
+              and <dir >  = 0b00000111
+              ========================
+              the new dir = 0bxxxx0111
+      
+      
+3.2.2.2 PORT: set or read pin state (low/high)
+
+          <pinstate> = PortState(<port>)
+          <pinstate> = PortState(<port>, <pins>, <mask>)
+
+          Operates exactly like "PortDir()" above, except it writes to PORTx,
+          not to the TRISx registers, and modifies the state (high/low) of the pins.
+          
+3.2.2.3 PORT: unconditionally set port latch
+
+          <retval> = PortLatch(<port>, <state>)
+          
+          Immediately sets the port latch <port> to the state specified by <state>
+          Returns -1 if the port is not defined or access is not allowed.
+          Returns 0 in all other cases.
+
+          Example:
+          
+          -- set complete PORTD to 0x0007
+          pic.PortLatch(3,7)
+          
+          
+3.2.2.4 PORT: unconditionally set pins on a port to high state
+
+          <retval> = PortPinsHigh(<port>, <pins>)
+          
+          Immediately sets pins, specified by a 16 bit mask in <pins>, to a high state.
+          Returns -1 if the port is not defined or access is not allowed.
+          Returns 0 in all other cases.
+
+          Example:
+          
+          -- set PORTD.1
+          pic.PortPinsHigh(3,2)
+
+          
+3.2.2.5 PORT: unconditionally clear pins on a port
+
+          <retval> = PortPinsLow(<port>, <pins>)
+          
+          Immediately sets pins, specified by a 16 bit mask in <pins>, to a low state.
+          Returns -1 if the port is not defined or access is not allowed.
+          Returns 0 in all other cases.
+
+          Example:
+          
+          -- clear PORTD.2
+          pic.PortPinsLow(3,3)
+
+
+3.2.2.6 PORT: unconditionally inverts pins on a port
+
+          <retval> = PortPinsInv(<port>, <pins>)
+          
+          Immediately inverts pin states, specified by a 16 bit mask in <pins>.
+          Returns -1 if the port is not defined or access is not allowed.
+          Returns 0 in all other cases.
+          
+          Example:
+          
+          -- toggle PORTD.0
+          for i=1,10 do
+            pic.PortPinsInv(3,1)
+          end
+
+          
+          
+3.2.3   Timer functions
+
+          PIC32Lua uses an internal 64 bit timer that increments every 100ns.
+          It will overflow every 58494 years... ;)
+
+          
+3.2.3.1 TIMER: read value
+
+          <timerval> = TimerRead()
+          
+          Returns the unsigned 64 bit value of the timer.
+          For conversion to time, the variable "pic.TIMERTICK" can be used.
+          
+          Examples:
+          
+            -- read the 64 bit value of the timer
+            stim=pic.TimerRead()
+
+            -- perform some calulations
+            while blabla do
+              ...
+              ...
+            end
+            
+            -- determine the pure tick difference
+            stim=pic.TimerRead()-stim
+            
+            -- print out the time, in seconds, the action above took
+            print(stim * pic.TIMERTICK)
+
+            
+3.2.3.2 TIMER: timer match
+
+          <match> = TimerMatch(<matchval>)
+          <match> = TimerMatch(<matchval>, <blocking>)
+          
+          If the second argument <blocking> is omitted, this functions blocks
+          execution until the timer value exceeds the value <matchval>.
+          If both arguments are given, <blocking> determines the behaviour of "TimerMatch()":
+          
+          <blocking == 0> immediately returns '0' if <matchval> is lesser than the timer value
+                          and '1' if the timer value already exceeded the value <matchval>.
+          <blocking == 1> (default)
+                          waits (blocks execution) until the timer value exceeds the value
+                          <matchval>.
+
+          Examples:
+
+            -- BLOCKING:
+            tim=pic.TimerRead()
+            tim=tim+(5.0/pic.TIMERTICK)
+            ...
+            -- blocks until 5s passed
+            pic.TimerMatch(tim)
+            ...
+
+            
+            -- BLOCKING (explicit notation):
+            tim=pic.TimerRead()
+            tim=tim+(5.0/pic.TIMERTICK)
+            ...
+            -- blocks until 5s passed
+            pic.TimerMatch(tim,1)
+            ...
+
+            
+            -- NONBLOCKING:
+            tim=pic.TimerRead()
+            tim=tim+(5.0/100e-9)
+            while(pic.TimerMatch(tim,0)==0)
+              ...
+            end
+                          
+
+3.2.3.3 TIMER: timer delay
+                          
+          <nil> = pic.TimerDelay(<ms>)
+          <nil> = pic.TimerDelay(<ms/us>, <use_usecs>)
+          
+          Delays code execution for the time specified by <ms> or <ms/us>.
+          If only one argument is present, the timebase is 1ms.
+          The second argument, if any, can set set timebase to us:
+          
+          <use_usecs == 0>  ->  timebase is 1ms
+          <use_usecs == 1>  ->  timebase is 1us
+          
+          Note: For accurate and precise timings, "TimerMatch()" should be used.
+          
+          Examples:
+            
+            -- these three pause for 1s:
+            pic.TimerDelay(1000)
+            pic.TimerDelay(1000,0)
+            pic.TimerDelay(1000000,1)
+
+                          
+                          
+3.2.3   Console functions
+
+
+3.2.3.1 CONSOLE: read a character
+
+          <nil/character> = ConsoleReadChar()
+          
+          Immediately returns the next available character <character>, as an integer value, from
+          the receive buffer. If the receive buffer is empty, <nil> is returned.
+          
+          Examples:
+          
+            -- prints numeric value of received characters until ESC (27dec) is detected
+            repeat
+              ch=pic.ConsoleReadChar()
+              if ch~=nil then
+                print(ch)
+              end
+            until ch==27
+          
+          
+3.2.3.2 CONSOLE: count characters in receive buffer
+
+          <count> = ConsoleCount()
+          
+          Returns the number of characters (or "bytes") in the receive buffer.
+          If the RX console buffer overflowed, a '-1' will be returned.
+          "ConsoleFlushIn()" can be called to clear the buffer and reset the overflow flag.
+          
+          Example:
+          
+            if pic.ConsoleCount() > 0 then
+              -- read buffer, perform some actions...
+            end
+
+          
+3.2.3.3 CONSOLE: flush receive buffer
+
+          <nil> = ConsoleFlushIn()
+          
+          Clears the complete receive buffer and resets the overflow flag, if set.
+
+          
+          
+3.2.4   SD-card functions
+
+3.2.4.1 CARD: detect card insertion
+
+          <retval> = CardDetect()
+            
+          Checks if an SD-card is inserted mechanically, nothing more:
+          <retval == 0>  ->  no card inserted
+          <retval == 1>  ->  card inserted
+
+
+3.2.4.2 CARD: mount card
+
+          <retval> = CardMount()
+          
+          Mounts the SD-card for usage. Ports are initialized, and "connection" to the
+          card is established.
+          Note #1: Internally, this function calls DOES NOT CALL (*1*) "CardDetect()" ANYMORE.
+          Note #2: You are advised to use "CardDetect()", followed by a little delay (300-500ms),
+                   prior to calling "CardMount()".
+                   This avoids power-up problems and gives an extra chance that the card is
+                   connected electrically ("CardDetect()" only checks the mechanical insertion,
+                   via a simple switch, which does not imply that the card is electrically
+                   connected).
+
+          (*1*) changed in V0.3a
+
+                   
+          Returns:       
+          <retval == 0>  ->  an error occured
+          <retval == 1>  ->  card mounted
+
+          Example, including CardDetect():
+          
+            -- check for insertion and mount card
+            while not timeout do
+              if pic.CardDetect() then
+                pic.TimerDelay(400)
+                return pic.CardMount()
+              end
+              -- calculate "timeout"
+              ...
+            end
+            return 0
+          
+          
+3.2.4.3 CARD: find first file or directory
+
+          <nil>/<name>,<size> = CardFindFirst(<name>)
+          <nil>/<name>,<size> = CardFindFirst(<name>, <type>)
+
+          Given a wildcard string <name>, this functions returns the file name and size of the
+          first file in the current path. <name> is returned as a string, <size> is an integer.
+          If no file is present or matches the given search string, "nil" is returned.
+          
+          An optional second argument specifies the types of entries that should be considered:
+          
+          <type == 0>  ->  files only (same as only one argument given)
+          <type == 1>  ->  directories only
+          <type == 2>  ->  files and directories
+
+
+3.2.4.4 CARD: find next file or directory
+
+          <nil>/<name>,<size>   = CardFindNext()
+          
+          If "CardFindFirst()" successfully returned the name of the first entry in the current
+          path, further file or directory names may be retrieved with "CardFindNext()".
+          This function uses the same search mask (the wildcard), as specified by "CardFindFirst()".
+          If no corresponding file or directory was found, "nil" is returned, otherwise two
+          return arguments contain the filename, as a string, and the size of the file in bytes.
+          
+          Example:
+
+            -- print name and size of all files and directories
+            nam,size=pic.CardFindFirst("*.*",2)
+            if nam ~= nil then
+              while 1 do
+                print(nam,size)
+                nam,size=pic.CardFindNext()
+                if nam==nil then
+                  break
+                end
+              end -- while
+            end -- if nam not nil
+
+            
+            
+3.2.5   AD-CONVERTER
+
+3.2.5.1 AD: Set pins to analog input state
+
+          <state> = ADPins()
+          <state> = ADPins(<pins>)
+          
+          Set or query analog input state. If no argumant is given, this function returns
+          the current state of the AD converter pins.
+          If the function is called with the <pins> argument, the corresponding pins,
+          specified by the 16 bit <pins> bitmask, are set to an analog (bit == '1')
+          or a digital pin state (bit == '0').
+          
+          Note: Additionally, every pin that should be operated in analog mode, must
+                have its direction set to input ("Port.Dir(pic.port.B,<anamask>,<anamask>)").
+
+          <pins>   =>  16 bit analog pin mask (0 = digital pin; 1 = analog pin)
+          
+          Returns:
+          <state>  =>  current state of the analog pins
+          
+          Examples:
+          
+            -- set AN1-4 to analog state
+            pic.PortDir(pic.port.B,0,0b11110)
+            pic.ADPins(0b11110)
+
+            -- query pin state of AN0-31
+            apins=ADPins()
+
+
+3.2.5.2 AD: Set multiplexer A and B input pins
+
+          <retval> = pic.ADMux(<muxa_pos>, <muxb_pos>)
+          <retval> = pic.ADMux(<muxa_pos>, <muxb_pos>, <muxa_neg>, <muxb_neg>)
+          
+          Select input pins for AD converter multiplexer A and B.
+          If <muxa_neg> and <muxb_neg> are omitted, their values default to "0",
+          which select "VR-" as the reference for the negative inputs.
+          
+          NOTE: Currently, only MUX A is used (B for future upgrade)!
+                
+          
+          MUX A positive input:
+            <muxa_pos ==  0>  =>  AN0
+            <muxa_pos ==  1>  =>  AN1
+            ...
+            <muxa_pos == 15>  =>  AN15
+
+          MUX B positive input:
+            <muxb_pos ==  0>  =>  AN0
+            <muxb_pos ==  1>  =>  AN1
+            ...
+            <muxb_pos == 15>  =>  AN15
+            
+          MUX A negative input:
+            <muxa_neg ==  0>  =>  VR-
+            <muxa_neg ==  1>  =>  AN1
+            
+          MUX B negative input:
+            <muxb_neg ==  0>  =>  VR-
+            <muxb_neg ==  1>  =>  AN1
+            
+          Returns:
+          <retval ==  0>  =>  no error
+          <retval == -1>  =>  invalid <muxa_pos> or <muxa_neg>
+
+            
+3.2.5.3 AD: Select reference voltage
+
+          <nil> = pic.ADRef(<vrefcfg>)
+          
+          Depending on <vrefcfg>, the following voltage references can be selected.
+          On start up, "AVdd" and "AVss" are selected.
+          
+            <vrefcfg == 0b000>  =>  AVdd    AVss
+            <vrefcfg == 0b001>  =>  VRef+   AVss
+            <vrefcfg == 0b010>  =>  AVdd    VRef-
+            <vrefcfg == 0b011>  =>  VRef+   VRef-
+            <vrefcfg == 0b1xx>  =>  AVdd    AVss
+
+            
+3.2.5.4 AD: Start conversion and read result
+          
+          <adval> = pic.ADRead()
+          
+          Calling "ADRead()" immediately returns the 10 bit conversion result of
+          the AD converter.
+
+
+          
+          
+7       TODO-LIST
+
+7.1     INTERFACES
+
+7.1.1   UART
+      
+          - more than one user-UART (inside PIC32Lua)
+          - freely selectable UART for console and user-UARTs
+
+          
+7.1.2   I2C
+
+          - not implemented yet
+
+          
+7.1.3   SPI
+
+          - not implemented yet (only as CD-card interface)
+ 
+ 
+ 
+8       COPYRIGHT/LEFT
+
+          See distribution...
+          
+          
+            
+9       CHANGES
+
+9.1     V0.1a:
+        VARIABLES:
+          - NEW: port "names" ("pic.port.A", "pic.port.B", ...)
+        PORT FUNCTIONS:
+          - NEW: PortLatch(<port>, <state>)
+        OTHER:
+          - some cleanups in asIO.c (stdio, stderr, io.write, ...)
+
+          
+9.2     V0.1b:
+        SYSTEM:
+          - NEW: binary number representation with, e.g.: '0b001110'
+        VARIABLES:
+          - NEW: timer tick-time variable (100ns, by default) in "pic.TIMERTICK"
+
+          
+9.3     V0.2a:
+        TIMER FUNCTIONS:
+          - NEW: simple delay function in msec and usec; TimerDelay(<usec>, [<uflag>])
+        SD-CARD FUNCTIONS:
+          - NEW: check card insertion: CardDetect()
+          - NEW: mount card: CardMount()
+          - NEW: find first file/dir: FindFirst(<name>, <type>)
+          - NEW: find next file/dir: FindNext()
+          - NEW: almost complete (but yet not fully tested) IOLIB sd-card integration;
+                 reading, writing, seeking, ..., can all be done through Lua's iolib
+        IOLIB (stdio):
+          - NEW: interface to IOLIB's console interface. E.g.: io.write, io.read, ...
+
+          
+9.4     V0.2b:
+        OTHER:
+          - NEW: configuration bits now in code (by popular demand ;-)
+        PORT FUNCTIONS:
+          - CORR: PortDir() now returns the correct values (~TRISx)
+        AD CONVERTER:
+          - NEW: select analog input pins; ADPins(<state>)
+          - NEW: select multiplexer input pins; ADMux(<muxa_pos>,<muxb_pos>,<muxa_neg>,<muxb_neg>)
+          - NEW: select Vref; ADRef(<vrefcfg>)
+          - NEW: start conversion and read result; <adval>=ADRead()
+
+          
+9.5     V0.2c:
+        OTHER:
+          - NEW: limited support for "dofile()" and "loadfile()" (no real error checks)
+          - FIX: wrong buffer index in asUART1.c (UART1_RXBUFSIZE replaces RXBUFSIZE)
+          - FIX: stupid buffer overrun error in asUART1.c and asCON.c
+
+          
+9.6     V0.3a:
+        OTHER:
+          - FIX: support for C32 v2.01
+          - CHG: CardMount() does not check for card insertion anymore
+          - CHG: minor code cleanups (replaced default 'stderr' output by 'stdin', ...)
+
+          
+9.7     V0.4a:
+          - NEW: support for chipKIT-Max32
+          - NEW: console and serial port UARTs can now be swapped
+          - FIX: minor cleanups (still a LOT to do ;-)
+
+          
+9.8     V0.4b:
+          - NEW: SD-card boot file support; boots function "BOOT32()" in file "BOOT32.LUA"
+          - NEW: added SPI pin documentation
+          - FIX: corrected pins for SPI1
+                 SD-card now works on both SPI interfaces

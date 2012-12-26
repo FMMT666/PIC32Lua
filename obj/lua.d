@@ -1,0 +1,4 @@
+obj\lua.o: src\lua.c src\/lua.h src\/luaconf.h src\/lauxlib.h src\/lua.h \
+ src\/lualib.h src\/asPIC.h src\/FSIO.h src\/FSconfig.h src\/Compiler.h \
+ src\/HardwareProfile.h src\/asPIC.h src\/FSDefs.h src\/SD-SPI.h \
+ src\/asDBG.h src\/asLUA_PIC.h src\/asCON.h src\/asCARD.h
