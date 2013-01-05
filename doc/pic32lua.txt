@@ -10,9 +10,7 @@
 
 0       PREFACE
 
-          Just a quick hack...
-          My personal, small, yet 3 week old, "port" (...) of Lua to a PIC32 MCU.
-          A hardware guy is just having his fun, here 8-)
+          A hardware guy is just having his fun, here...
         
           ...
        
