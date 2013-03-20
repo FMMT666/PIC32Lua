@@ -21,7 +21,7 @@
 #define LUA_VERSION_NUM	501
 #define LUA_COPYRIGHT	 "Copyright (C) 1994-2008 Lua.org, PUC-Rio"
 // ASkr
-#define LUA_COPYRIGHT2 "Copyright (C) 2010-2012 ASkr, PIC32"
+#define LUA_COPYRIGHT2 "Copyright (C) 2010-2013 ASkr, PIC32"
 #define LUA_AUTHORS 	 "R. Ierusalimschy, L. H. de Figueiredo & W. Celes"
 
 

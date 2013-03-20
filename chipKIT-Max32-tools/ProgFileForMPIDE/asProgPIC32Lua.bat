@@ -2,6 +2,10 @@
 rem
 rem   Minimal PIC32Lua programming helper
 rem
+rem   Move this batch file and the "PIC32Lua-ChipkitMAX32.hex" file to
+rem   your "MPide" root directory.
+rem
+rem
 rem   USAGE:
 rem     asProgPIC32Lua <COMPORT>
 rem     
@@ -11,15 +15,11 @@ rem
 rem
 rem   ASkr 11/2011
 rem
-rem
-rem   CHANGES 3/2013:
-rem     - avrdude now included, batch file can be run from in here
-rem
 
 
-set PIC32LUAHEXFILE=..\out\PIC32Lua-ChipkitMAX32.hex
-set AVRDUDE=bin\avrdude.exe
-set AVRDUDECFG=bin\avrdude.conf
+set PIC32LUAHEXFILE=PIC32Lua-ChipkitMAX32.hex
+set AVRDUDE=hardware\tools\avr\bin\avrdude.exe
+set AVRDUDECFG=hardware\tools\avr\etc\avrdude.conf
 
 
 rem ---------------------------------------------------------------------------------

@@ -69,6 +69,10 @@ For binary releases see [www.askrprojects.net/software/pic32lua/index.html][1]
       SD-card now works on both SPI interfaces  
 
 
+### V0.4c:
+    - FIX: 64-bit timer bug (lock-up after 430s)
+
+
 Have fun  
 FMMT666(ASkr)  
 

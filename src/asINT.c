@@ -72,9 +72,11 @@ void __ISR(_UART_2_VECTOR, ipl4) _U2RXInterrupt(void)
 //**************************************************************************************
 //*** TIMER 4/5 INTERRUPT
 //***
-//*** unused, so far...
+//***
 //**************************************************************************************
-void __ISR(_TIMER_5_VECTOR, ipl5) _T5Interrupt(void) 
+
+// stopped working with newer C32 dist (V2.02)
+void __ISR(_TIMER_5_VECTOR, ipl5) _T5Interrupt(void)
 { 
 	gTimerHigh++;
   mT5ClearIntFlag(); 

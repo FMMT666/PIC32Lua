@@ -1,10 +1,9 @@
 
- Minimal PIC32Lua-chipKIT-Max32 programming helper
+ Minimal PIC32Lua-chipKIT-Max32 programming helper.
+ 
+   ONLY FOR CHIPKIT-MAX32!
 
- Move this batch file and the "PIC32Lua-ChipkitMAX32.hex" file to
- your "MPide" root directory.
-
-
+   
  USAGE:
    asProgPIC32Lua <COMPORT>
    
@@ -12,6 +11,5 @@
    E.g. COM1, COM2, COM6...
 
 
- ASkr 11/2011
+ ASkr 3/2013
  www.askrprojects.net
- 

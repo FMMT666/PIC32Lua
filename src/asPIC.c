@@ -66,7 +66,7 @@
 // 'gTimerHigh' increments on every Timer45 overflow (~430s).
 // Now, we have a 1.845e12s timer (=58494 years)
 // Should be sufficient ;)
-volatile int gTimerHigh;
+volatile unsigned long gTimerHigh;
 
 static const unsigned long PIC_TRISx[PIC_MAXPORTS]={PIC_TRISA, PIC_TRISB, PIC_TRISC, PIC_TRISD, PIC_TRISE, PIC_TRISF, PIC_TRISG, PIC_TRISH};
 static const unsigned long PIC_PORTx[PIC_MAXPORTS]={PIC_PORTA, PIC_PORTB, PIC_PORTC, PIC_PORTD, PIC_PORTE, PIC_PORTF, PIC_PORTG, PIC_PORTH};
@@ -95,8 +95,8 @@ void asPIC_Init()
 
 	// CPU stuff
 	// default is 2 flash waitstates for 80MHz operation
-	SYSTEMConfig(SYS_FREQ, SYS_CFG_WAIT_STATES | SYS_CFG_PCACHE);
-	mOSCSetPBDIV(OSC_PB_DIV_2);
+	SYSTEMConfig( SYS_FREQ, SYS_CFG_WAIT_STATES | SYS_CFG_PCACHE );
+	mOSCSetPBDIV( OSC_PB_DIV_2 );
 	
 	
 #ifndef CONSOLE_SWAP
@@ -105,7 +105,7 @@ void asPIC_Init()
 	U2MODE = 0b1000100000000000;
 	U2STAbits.UTXEN = 1;
 	U2STAbits.URXEN = 1;
-	U2BRG=(PER_FREQ/(16*CONSOLE_BAUD))-1;
+	U2BRG = ( PER_FREQ / (16 * CONSOLE_BAUD) ) - 1;
 	
 #else	
 
@@ -114,55 +114,55 @@ void asPIC_Init()
 	U1STA = 0b0000000000000000100010000;
 	U1STAbits.UTXEN = 1;
 	U1STAbits.URXEN = 1;
-	U1BRG=(PER_FREQ/(16*CONSOLE_BAUD))-1;
+	U1BRG = ( PER_FREQ / (16 * CONSOLE_BAUD) ) - 1;
 
 #endif
 
 	// AD CONVERTER
-	AD1PCFG=0xffff;								// digital pins
+	AD1PCFG = 0xffff;							// digital pins
 	
 	// TOCHK
 	// C32 V2.00
-//	AD1CON1bits.FRZ=1;						// freeze on exception
+//	AD1CON1bits.FRZ=1;					// freeze on exception
 
 
-	AD1CON1bits.SIDL=0;						// continue in idle mode
-	AD1CON1bits.FORM=0b100;				// unsigned, 10bit output
-	AD1CON1bits.SSRC=0;						// manual mode (SAMP bit)
-	AD1CON1bits.CLRASAM=0;				// do not stop conv.
-	AD1CON1bits.ASAM=1;						// auto sampling mode
-	AD1CON1bits.SAMP=1;						// start sampling			
+	AD1CON1bits.SIDL = 0;					// continue in idle mode
+	AD1CON1bits.FORM = 0b100;			// unsigned, 10bit output
+	AD1CON1bits.SSRC = 0;					// manual mode (SAMP bit)
+	AD1CON1bits.CLRASAM = 0;			// do not stop conv.
+	AD1CON1bits.ASAM = 1;					// auto sampling mode
+	AD1CON1bits.SAMP = 1;					// start sampling			
 
-	AD1CON2bits.VCFG=0b000;				// use AVdd and AVss as reference
-	AD1CON2bits.OFFCAL=0;					// no calib.
-	AD1CON2bits.CSCNA=0;					// no scan
-	AD1CON2bits.SMPI=0;						// int. if conv. complete			
-	AD1CON2bits.BUFM=0;						// 16 bit buffer
-	AD1CON2bits.ALTS=0;						// use MUX A settings
+	AD1CON2bits.VCFG = 0b000;			// use AVdd and AVss as reference
+	AD1CON2bits.OFFCAL = 0;				// no calib.
+	AD1CON2bits.CSCNA = 0;				// no scan
+	AD1CON2bits.SMPI = 0;					// int. if conv. complete			
+	AD1CON2bits.BUFM = 0;					// 16 bit buffer
+	AD1CON2bits.ALTS = 0;					// use MUX A settings
 
-	AD1CON3bits.ADRC=0;						// AD clock from periph. clk.
-	AD1CON3bits.SAMC=1;						// only 1 TAD (sampling all the time)
-	AD1CON3bits.ADCS=1;						// TAD=100ns (@40MHz peripheral clock)
+	AD1CON3bits.ADRC = 0;					// AD clock from periph. clk.
+	AD1CON3bits.SAMC = 1;					// only 1 TAD (sampling all the time)
+	AD1CON3bits.ADCS = 1;					// TAD=100ns (@40MHz peripheral clock)
 	
-	AD1CHS=0;											// MUX A/B pos = AN0; neg = VR-
+	AD1CHS = 0;										// MUX A/B pos = AN0; neg = VR-
 
-	AD1CSSL=0;										// no scan (just in case)	
+	AD1CSSL = 0;									// no scan (just in case)	
 	
-	AD1CON1bits.ON=1;							// on (no need to save power)
+	AD1CON1bits.ON = 1;						// on (no need to save power)
 	
 	// TIMER 4/5
 	// With a 40MHz peripheral clock and a 1/4 ratio, this timer
 	// increments every 100ns.
 	// 100ns * 2^32 = ~430s (overflow)
 	// forms a 64 bit timer with 'gTimerHigh' (overflows every 58494 years ;-)
-
-	OpenTimer4(T4_ON|
+	OpenTimer45(T4_ON|
 							T4_IDLE_CON|
 							T4_GATE_OFF|
 							T4_PS_1_4|				// <- changing this requires changing "TIMER45_TICK"
 							T4_32BIT_MODE_ON|
 							T4_SOURCE_INT,
 							0xffffffff);
+
 
 	// INTERRUPTS
 	INTEnableSystemMultiVectoredInt();
@@ -171,16 +171,17 @@ void asPIC_Init()
   mU2RXClearIntFlag();
   mU1RXClearIntFlag();
   
-  ConfigIntTimer4(T5_INT_ON|T5_INT_PRIOR_4);
+	// Timer45 interrupt (actually timer 5)  
+  ConfigIntTimer45( T5_INT_ON | T5_INT_PRIOR_5 );
 
   
 #ifndef CONSOLE_SWAP
 
-  ConfigIntUART2(UART_RX_INT_EN|UART_INT_PR2);
+  ConfigIntUART2( UART_RX_INT_EN | UART_INT_PR2 );
   
 #else
 
-  ConfigIntUART1(UART_RX_INT_EN|UART_INT_PR2);
+  ConfigIntUART1( UART_RX_INT_EN | UART_INT_PR2 );
 
 #endif
 
@@ -190,7 +191,7 @@ void asPIC_Init()
 	
 	// OTHER STUFF
 	asCON_RXBufInit();	// initialize receive buffer
-	gTimerHigh=0;				// clear upper 32 bits of the internal 64 bit timer
+	gTimerHigh = 0;			// clear upper 32 bits of the internal 64 bit timer
 	
 
 #ifdef PIC32_DEBUG
@@ -417,6 +418,7 @@ int asPIC_Port_InvPins(int port, int pins)
 }
 
 
+
 //**************************************************************************************
 //*** asPIC_Timer_Read
 //***
@@ -424,22 +426,19 @@ int asPIC_Port_InvPins(int port, int pins)
 //**************************************************************************************
 unsigned long long asPIC_Timer_Read()
 {
-	unsigned i=gTimerHigh;
+	// read upper 32 bits of timer
+	unsigned long i = gTimerHigh;
+	// read lower 32 bits of timer
+	unsigned long j = ( TMR5 & 0xffff ) << 16 | ( TMR4 & 0xffff );
 	
-	// ASkr C32 1.13 adaption
-//	unsigned j=TMR45;
-	unsigned j=TMR4;
-	
-	// did an overflow occur between i and j, above?
-	if(gTimerHigh > i)
+	// did gTimerHigh change in the meantime?
+	if( gTimerHigh > i )
 	{
-	// ASkr C32 1.13 adaption
-//		j=TMR45;
-		j=TMR4;
-		i=gTimerHigh;
+		j = ( TMR5 & 0xffff ) << 16 | ( TMR4 & 0xffff );
+		i = gTimerHigh;
 	}
 	
-	return (unsigned long long)i<<32 | j;
+	return ((unsigned long long)i)<<32 | j;
 }
 
 
@@ -453,13 +452,13 @@ int asPIC_Timer_Match(unsigned long long match, int blocked)
 {
 	if(blocked == BLOCKING)
 	{
-		while(asPIC_Timer_Read() < match)
+		while( asPIC_Timer_Read() < match )
 		{;}
 		return 1;
 	}
 	else
 	{
-		if(asPIC_Timer_Read() < match)
+		if( asPIC_Timer_Read() < match )
 			return 0;
 		else
 			return 1;
@@ -508,6 +507,8 @@ int asPIC_AD_Read()
 	// mhh...
 	// might the 5 stage pipeline cause problems with DONE=0
 	// and querying it < 3 cycles?
+	
+	// TODO: Check with -O2 settings
 /*
 
 	looks like it is safe ;-)

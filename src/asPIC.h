@@ -132,7 +132,7 @@
 // THE REST
 #ifndef __asPIC
 
-	extern volatile int gTimerHigh;
+	extern volatile unsigned long gTimerHigh;
 
 	extern const unsigned long PIC_TRISx[PIC_MAXPORTS];
 	extern const unsigned long PIC_PORTx[PIC_MAXPORTS];

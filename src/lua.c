@@ -472,9 +472,6 @@ int main (void)
 	  
 	  status = lua_cpcall(L, &pmain, &s);
 	  
-	  // DEBUG ONLY
-		asCON_SerialWriteString("\nUPS...\n");
-	  
 	  report(L, status);
 	  lua_close(L);
 
