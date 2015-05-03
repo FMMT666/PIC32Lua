@@ -7,6 +7,8 @@ Lua for PIC32 Processors.
 A newly created Git playground.  
 For binary releases see [www.askrprojects.net/software/pic32lua/index.html][1]
 
+2015/05: Also notice the new PIC32LuaMZ playground [here][2].
+
 ---
 
 ## CHANGES
@@ -78,4 +80,4 @@ FMMT666(ASkr)
 
 
 [1]: http://www.askrprojects.net/software/pic32lua/index.html
-
+[2]: https://github.com/FMMT666/PIC32LuaMZ
